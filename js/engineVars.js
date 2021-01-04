@@ -79,7 +79,7 @@ vars.ai.choosePosition = function() {
             if (vars.player.move===1) { // THIS IS THE 2ND MOVE
                 // also remember, middle space HAS been taken and ALL corners are available
                 let availablePositions = consts.aiData.diagonalPositions;
-                let rndIndex = Phaser.Math.RND.between(0,availablePositions.length-1);
+                let rndIndex = getRandom(0,availablePositions.length-1);
                 let boardID = availablePositions[rndIndex];
                 
                 let APs = vars.game.availablePositions;
@@ -139,7 +139,7 @@ vars.ai.doFinalChecks = function(possibles,xPositions) {
             if (ai.diagonalPositions.includes(x)) { posArray = ai.diagonalSiblings; } else { posArray = ai.centreSiblings; }
 
             let selectedIndex = -1;
-            posArray.forEach( (c)=> { if (c[0]===x) { let tempArray = [c[1],c[2]]; selectedIndex = Phaser.Math.RND.pick(tempArray); } })
+            posArray.forEach( (c)=> { if (c[0]===x) { let tempArray = [c[1],c[2]]; selectedIndex = getRandom(tempArray); } })
 
             // sanity check
             if (selectedIndex===-1) {

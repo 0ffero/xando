@@ -1,7 +1,7 @@
 var vars = {
     DEBUG: true,
 
-    version: 1.0,
+    version: 1.01,
 
     init: function() {
         vars.game.availablePositions = Phaser.Utils.Array.NumberArray(0,8);
@@ -53,6 +53,7 @@ var vars = {
             scene.groups.board       = scene.add.group().setName('boardGroup');
             scene.groups.pieces      = scene.add.group().setName('piecesGroup');
             scene.groups.score       = scene.add.group().setName('scoreGroup');
+            scene.groups.highlight   = scene.add.group().setName('highlightGroup');
         }
     },
 
@@ -111,7 +112,7 @@ var vars = {
         },
 
         playGlassCrack: function() {
-            let rndSound = Phaser.Math.RND.integerInRange(1,2);
+            let rndSound = getRandom(1,2);
             vars.camera.shake();
             vars.audio.playSound('glassCrack' + rndSound);
         },
@@ -142,7 +143,7 @@ var vars = {
             for (let p=0; p<9; p++) {
                 if (p%3===0 && p>0) { y += xyInc; x = 180; }
                 // create the window first
-                let windowGlass = scene.add.image(x,y,'whitePixel').setName('window_' + p).setData({ 'position': p, 'clicked': false, 'piece': -1 }).setScale(238).setTint(consts.tints.glassWindow).setAlpha(0.97).setDepth(consts.depths.windowPiece);
+                let windowGlass = scene.add.image(x,y,'whitePixel').setName('window_' + p).setData({ 'position': p, 'clicked': false, 'piece': -1 }).setScale(238).setTint(consts.tints.glassWindow).setAlpha(0.93).setDepth(consts.depths.windowPiece);
                 scene.groups.windows.add(windowGlass);
                 // then the board position
                 let position = scene.add.image(x,y,'block').setName('block_' + p).setData({ 'position': p, 'clicked': false, 'piece': -1 }).setDepth(consts.depths.boardPiece).setInteractive();
@@ -211,7 +212,7 @@ var vars = {
             dangerousLineCounter.forEach( (c)=> {
                 if (found===c[0]) {
                     console.log('Weve found the counter to this dangerous line\nReturning a counter position');
-                    selectedIndex = Phaser.Math.RND.pick(c[1].split(''));
+                    selectedIndex = getRandom(c[1].split(''));
                 }
             })
             return selectedIndex;
@@ -237,7 +238,7 @@ var vars = {
                     if (pieces==='11') { // weve found an L with no blocker
                         // pick one of the empty positions in lPos
                         let positions = empties.split('');
-                        returnVar = Phaser.Math.RND.pick(positions);
+                        returnVar = getRandom(positions);
                     }
                 }
             })
@@ -267,8 +268,8 @@ var vars = {
             let windowWidth = 238;
             let windowDiameter = 337;
             let diff = imageWidth - windowDiameter;
-            let x = Phaser.Math.RND.between(0,diff);
-            let y = Phaser.Math.RND.between(0,diff);
+            let x = getRandom(0,diff);
+            let y = getRandom(0,diff);
 
             // now grab that piece of the image
             let glassBroken = scene.add.image(_x,_y,'brokenGlass').setCrop(x,y,windowDiameter,windowDiameter).setDepth(consts.depths.windowPiece+1);
@@ -356,6 +357,15 @@ var vars = {
             })
         },
 
+        highlightClear: function() {
+            let hGroup = scene.groups.highlight;
+            if (hGroup.children.size!==0) {
+                hGroup.children.each( (c)=> {
+                    c.destroy();
+                })
+            }
+        },
+
         restart: function() {
             console.clear();
             console.log('%c**********************\n***    NEW GAME    ***\n**********************', consts.console.important);
@@ -403,6 +413,20 @@ var vars = {
             scene.input.on('gameobjectdown', function (pointer, position) {
                 if (position.getData('clicked') === false) { vars.game.dropPlayerPiece(position); }
             })
+
+            scene.input.on('gameobjectover', function (pointer, gameObject) {
+                if (scene.input.enabled===true) { // its the players turn
+                    if (gameObject.getData('clicked') === false) { // this position hasnt been taken yet
+                        vars.game.highlightClear();
+                        let h = scene.add.image(gameObject.x,gameObject.y,'xopieces',1).setOrigin(0.5).setDepth(consts.depths.gamePiece).setAlpha(0.02);
+                        scene.groups.highlight.add(h);
+                    }
+                }
+            });
+
+            scene.input.on('gameobjectout', function (pointer, gameObject) {
+                vars.game.highlightClear();
+            });
         },
     },
 
@@ -415,19 +439,19 @@ var vars = {
             let square = new Phaser.Geom.Rectangle(-50, -100, vars.canvas.width+100, vars.canvas.height+200);
 
             // Front Layer
-            scene.particles.stars.createEmitter({ x: -32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: 580, max: 620}, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
+            scene.particles.stars.createEmitter({ x: vars.canvas.width+32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: -580, max: -620}, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
             // Middle Layer
-            scene.particles.stars.createEmitter({ x: -32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: 380, max: 420}, scaleX: 2/3, alpha: 2/3, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
+            scene.particles.stars.createEmitter({ x: vars.canvas.width+32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: -380, max: -420}, scaleX: 2/3, alpha: 2/3, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
             // back Layer
-            scene.particles.stars.createEmitter({ x: -32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: 180, max: 220}, alpha: 1/3, scaleX: 1/3, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
+            scene.particles.stars.createEmitter({ x: vars.canvas.width+32, y: { min: 2, max: vars.canvas.height-3 }, speedX: { min: -180, max: -220}, alpha: 1/3, scaleX: 1/3, lifespan: 10000, blendMode: 'ADD', quantity: 1, frequency: 10, deathZone: { type: 'onLeave', source: square } });
 
             // create the stars mask so we can fade them in
             let m = scene.add.image(vars.canvas.cX, vars.canvas.cY, 'whitePixel').setScale(vars.canvas.width, vars.canvas.height).setTint(consts.tints.black).setDepth(consts.depths.stars[2]+1);
             scene.tweens.add({
                 targets: m,
-                delay: 5000,
-                duration: 10000,
-                alpha: 0.1
+                delay: 2500,
+                duration: 5000,
+                alpha: 0.2
             })
         }
     },

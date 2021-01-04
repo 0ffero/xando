@@ -23,3 +23,17 @@ function shuffle(array) {
     }
     return array;
 }
+
+function getRandom(_min,_max=null) { // this function can deal with a min/max, array or a string
+    if (Array.isArray(_min)) {
+        return Phaser.Math.RND.pick(_min);
+    } else {
+        if (typeof _min==='number' && typeof _max==='number') {
+            return Phaser.Math.RND.between(_min,_max);
+        } else if (typeof _min==='string' && _max===null) { // string has been passed 
+            return Phaser.Math.RND.pick(_min.split(''));
+        } else {
+            console.error('The first passed var must either be an array, integer or string. If a 2nd value is passed it must be an integer');
+        }
+    }
+}
