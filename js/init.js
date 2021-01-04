@@ -56,6 +56,10 @@ function preload() {
 █████ █   █ █████ █   █   █   █████ 
 */
 function create() {
+
+    // INITIALISE VARIABLES, OBJECTS & ARRAYS
+    vars.init();
+
     vars.groups.init();
 
     vars.audio.init();

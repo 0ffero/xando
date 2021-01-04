@@ -3,6 +3,11 @@ var vars = {
 
     version: 0.7,
 
+    init: function() {
+        vars.game.availablePositions = Phaser.Utils.Array.NumberArray(0,8);
+        vars.game.usedPositions = [];
+    },
+
     // ENGINE FUNCTIONS
     canvas: {
         width: 1920, height: 1080,
@@ -77,17 +82,7 @@ var vars = {
     // GAME
 
     ai: {
-        choosePosition: function() {
-            // first, check if the middle sqaure has been taken
-            let position = scene.children.getByName('block_4')
-            if (position.getData('piece')===-1) {
-                // place cpu piece here
-            } else { // the middle piece has been taken
-                // if this is move 2, we need to select a diagonal piece, this will force a draw
 
-                // this is move 3 search for possible winning lines for the enemy and block them
-            }
-        }
     },
 
     animate: {
@@ -139,6 +134,9 @@ var vars = {
     },
 
     game: {
+        availablePositions: [],
+        usedPositions: [],
+
         init: function() {
             let x = 180; let y=180; let xyInc=360;
             for (let p=0; p<9; p++) {
@@ -153,7 +151,7 @@ var vars = {
             }
         },
 
-        checkForWin(_move) {
+        buildWinArray: function() {
             let winArray = [];
             let solutions = consts.solutions;
             solutions.forEach( (lines)=>{
@@ -165,14 +163,96 @@ var vars = {
                 })
                 winArray.push(tempStr);
             })
+            return winArray;
+        },
 
+        checkForDangerousLines: function() {
+            // search for xxo, xox and oxx
+            // this code should be done after checking for oWin
+            // because the player can force a win if we pick the wrong position
+            let ai = consts.aiData;
+            let dangerousLineCounter = ai.dangerousLines;
+            let tArray = ai.diagonalsOnly;
+            let checks = ai.checks;
+            let lines = []
+            tArray.forEach( (c,index)=> {
+                let tempStr = '';
+                c.forEach( (c)=> {
+                    let piece = scene.children.getByName('block_' + c).getData('piece');
+                    if (piece!==-1) {
+                        tempStr+=piece.toString();
+                    }
+                })
+                lines.push([tempStr,c.toString().replaceAll(',','')]);
+            })
+
+            let found=false;
+            lines.forEach( (c,index)=> {
+                if (found===false) {
+                    let tempStr = '';
+                    if (checks.includes(c[0])) {
+                        console.log('%cWe found a dangerous line. Block it',consts.console.important);
+                        //console.log('Line Data: ' + c[0] + '. Positions: ' + c[1]);
+                        let lineData = c[0].split('');
+                        let positions = c[1].split('');
+                        lineData.forEach( (piece,idx)=> {
+                            if (parseInt(piece)===consts.pieces.o) {
+                                tempStr+='o';
+                            } else {
+                                tempStr+=positions[idx];
+                            }
+                        })
+                        found=tempStr;
+                    }
+                }
+            })
+
+            let selectedIndex = false;
+            dangerousLineCounter.forEach( (c)=> {
+                if (found===c[0]) {
+                    console.log('Weve found the counter to this dangerous line\nReturning a counter position');
+                    selectedIndex = Phaser.Math.RND.pick(c[1].split(''));
+                }
+            })
+            return selectedIndex;
+        },
+
+        checkForLPattern: function() {
+            let lPos = consts.aiData.positionsL;
+            let returnVar = false;
+            lPos.forEach( (p)=> {
+                if (returnVar === false) {
+                    let pieces = '';
+                    let empties = '';
+                    p.forEach( (c)=>{
+                        let block = scene.children.getByName('block_' + c);
+                        let piece = block.getData('piece');
+                        if (piece!==-1) {
+                            pieces+=piece.toString();
+                        } else {
+                            // add to empties in case L is found
+                            empties+=c.toString();
+                        }
+                    })
+                    if (pieces==='11') { // weve found an L with no blocker
+                        // pick one of the empty positions in lPos
+                        let positions = empties.split('');
+                        returnVar = Phaser.Math.RND.pick(positions);
+                    }
+                }
+            })
+            return returnVar;
+        },
+
+        checkForWin(_move) {
+            let winArray = vars.game.buildWinArray();
             let oxWin = false;
             winArray.forEach( (line, index)=> {
                 if (oxWin===false) {
                     if (line==='000') { // O Win
-                        vars.player.oWins++; oxWin=true; vars.player.win('o', index);
+                        vars.player.oWins++; vars.player.winnerFound = oxWin = true; vars.player.win('o', index);
                     } else if (line==='111') { // X Win
-                        vars.player.xWins++; oxWin=true; vars.player.win('x', index);
+                        vars.player.xWins++; vars.player.winnerFound = oxWin = true; vars.player.win('x', index);
                     }
                 }
             })
@@ -225,10 +305,29 @@ var vars = {
         },
 
         dropPlayerPiece: function(_position) {
-            let pV = vars.player;
-            pV.move++;
-            vars.animate.dropPiece(_position);
-            if (pV.move>=5) { vars.game.checkForWin(pV.move); }
+            let posID = _position.getData('position');
+            // first, we need to remove this position from the available positions
+            let usedPositions = vars.game.usedPositions;
+            let availablePositions = vars.game.availablePositions;
+            let found=-1;
+            availablePositions.find( (c,index)=> {
+                if (c===posID) {
+                    // push it to used array
+                    usedPositions.push(c);
+                    found=index;
+                }
+            })
+
+            if (found!==-1) {
+                //remove this index from the available array
+                availablePositions.splice(found,1);
+                let pV = vars.player;
+                pV.move++;
+                vars.animate.dropPiece(_position);
+                if (pV.move>=5) { vars.game.checkForWin(pV.move); }
+            } else {
+                console.error('Something went wrong!!!\nThe player tried to drop a piece on to position ' + _position + '.\nBut, this position isnt in Available Positions array!');
+            }
         },
 
         destroyAllThePieces: function() { // ITS A DRAW
@@ -258,6 +357,10 @@ var vars = {
         },
 
         restart: function() {
+            console.clear();
+            console.log('%c**********************\n***    NEW GAME    ***\n**********************', consts.console.important);
+            // init all vars
+            vars.init();
             // clear the board
             scene.groups.board.children.each( (c)=> { c.setData({ clicked: false, piece: -1 }) })
             // remove the pieces
@@ -274,12 +377,24 @@ var vars = {
             // re-enable input
             scene.input.enabled=true;
 
-            vars.player.move=0;
+            let pV = vars.player;
+            pV.winnerFound=false;
+            pV.move=0;
+
+            if (pV.currentPiece==='o') {
+                setTimeout( ()=> { vars.ai.choosePosition(); }, 500)
+            }
         },
 
         swapPieces: function() {
             let pV = vars.player;
-            pV.currentPiece = pV.currentPiece==='x' ? 'o' : 'x';
+            pV.currentPiece = pV.currentPiece === 'x' ? 'o' : 'x';
+            if (pV.currentPiece==='o' && pV.move<9 && pV.winnerFound===false) {
+                scene.input.enabled=false;
+                setTimeout(()=>{ vars.ai.choosePosition(); },500)
+            } else {
+                scene.input.enabled=true;
+            }
         }
     },
 
@@ -289,10 +404,6 @@ var vars = {
                 if (position.getData('clicked') === false) { vars.game.dropPlayerPiece(position); }
             })
         },
-
-        enable: function() {
-
-        }
     },
 
     particles: {
@@ -324,6 +435,7 @@ var vars = {
     player: {
         currentPiece: 'x',
         move: 0, oWins: 0, xWins: 0, draws: 0,
+        winnerFound: false,
 
         lose: function(_tween, _object, _winner) {
             console.log('Winner was ' + _winner);
@@ -386,21 +498,21 @@ var vars = {
             graphics = scene.add.graphics();
             graphics.fillStyle(0x000000, 1);
             graphics.lineStyle(2, 0xBBBBBB, 1);
-            graphics.fillRoundedRect(1100, 400, 795, 300, 16).setAlpha(0.75);
-            graphics.strokeRoundedRect(1100, 400, 795, 300, 16).setAlpha(0.75);
+            graphics.fillRoundedRect(1100, 20, 795, 300, 16).setAlpha(0.75);
+            graphics.strokeRoundedRect(1100, 20, 795, 300, 16).setAlpha(0.75);
 
             scene.add.text(1200, 100, 'For the love of god, let me win!').setFontSize(32).setTint(tints.yellow).setName('please').setInteractive().setAlpha(0).setScale(0.5).setDepth(uiDepth);
 
             let fontSize = 64;
             let textX = 1450;
-            scene.add.text(textX, 460, 'PLAYER (X) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('xWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
-            scene.add.text(textX, 540, '   CPU (O) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('oWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
-            scene.add.text(textX, 620, '          Draws: ').setFontSize(fontSize).setTint(tints.yellow).setName('drawsText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 90, 'PLAYER (X) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('xWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 170, '   CPU (O) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('oWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 250, '          Draws: ').setFontSize(fontSize).setTint(tints.yellow).setName('drawsText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
 
             textX = 1820;
-            scene.add.text(textX, 460, parseInt(pV.xWins)).setFontSize(fontSize).setTint(tints.white).setName('xWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
-            scene.add.text(textX, 540, parseInt(pV.oWins)).setFontSize(fontSize).setTint(tints.white).setName('oWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
-            scene.add.text(textX, 620, parseInt(pV.draws)).setFontSize(fontSize).setTint(tints.red).setName('drawsInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 90, parseInt(pV.xWins)).setFontSize(fontSize).setTint(tints.white).setName('xWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 170, parseInt(pV.oWins)).setFontSize(fontSize).setTint(tints.white).setName('oWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 250, parseInt(pV.draws)).setFontSize(fontSize).setTint(tints.red).setName('drawsInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
         },
 
         removeCrackedGlass: function() {
