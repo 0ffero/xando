@@ -1,7 +1,7 @@
 var vars = {
     DEBUG: true,
 
-    version: 0.7,
+    version: 1.0,
 
     init: function() {
         vars.game.availablePositions = Phaser.Utils.Array.NumberArray(0,8);
