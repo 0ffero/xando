@@ -1,10 +1,11 @@
 vars.ai.choosePosition = function() {
+    let gV = vars.game;
     // its the CPU's shot, disable input
     scene.input.enabled=false;
 
     let aiData = consts.aiData;
-    let usedPositions = vars.game.usedPositions;
-    let availablePositions = vars.game.availablePositions;
+    let usedPositions = gV.usedPositions;
+    let availablePositions = gV.availablePositions;
 
     // force CPUs turn
     let current = 'x';
@@ -101,7 +102,9 @@ vars.ai.choosePosition = function() {
                 if (moveFound===false) { // ok, so centre isnt available and CPU/PLAYER has no possible win line and at least one corner has been taken
                     if (vars.player.move===3) { // IF ITS MOVE 3 MAKE SURE THERE ARENT ANY DANGEROUS POSITIONS
                         let randomSlip = getRandom(1,100);
-                        if (randomSlip===75) {
+                        let slip = gV.CPUError;
+                        if (randomSlip===75 && slip===false) {
+                            slip=true;
                             // if we get a 75 back from the random number gen, we ignore the dangerous lines check
                             vars.ai.getRandomPosition();
                         } else {
@@ -120,11 +123,14 @@ vars.ai.choosePosition = function() {
 
 
 vars.ai.doFinalChecks = function(possibles,xPositions) {
+    let gV = vars.game;
+    let slip = gV.CPUError;
     // OK. Make sure there are no L's
     let moveFound=false; // this variable is unused, but can be set if needed in future
     console.log('%cChecking for Ls', consts.console.important);
     let whoopsie = getRandom(1,10);
-    if (whoopsie===8) { // 1 in 10 times the CPU ignores the L check
+    if (whoopsie===8 && slip===false) { // 1 in 10 times the CPU ignores the L check
+        slip=true;
         vars.ai.getRandomPosition();
     } else {
         let l = vars.game.checkForLPattern();
@@ -132,7 +138,7 @@ vars.ai.doFinalChecks = function(possibles,xPositions) {
             moveFound = true; vars.ai.dropPiece(l);
         } else {
             console.log('%c  ... no Ls found', consts.console.important);
-            let emptyPossibles = false; let CPUmalfunction = getRandom(1,9); if (CPUmalfunction===7) { possibles = []; emptyPossibles=true; }
+            let emptyPossibles = false; let CPUmalfunction = getRandom(1,9); if (CPUmalfunction===7 && slip===false) { slip=true; possibles = []; emptyPossibles=true; }
             if (emptyPossibles===false) { console.log('%c\nNo move found for CPU!\nNow were gonna look for a single 0 in the winArray to force a block by the player', consts.console.importantish); }
             if (possibles.length>0) {
                 // No defensive or offensive positions left, find an X to put the piece beside (this causes a block on the players end)
@@ -154,7 +160,7 @@ vars.ai.doFinalChecks = function(possibles,xPositions) {
                     // OK, we have a valid position, lets place the piece
                     moveFound = true; vars.ai.dropPiece(selectedIndex);
                 }
-            } else { // THERE ARE NO POSSIBLES WHICH MEAN WE CAN JUST PICK FROM WHATEVERS LEFT
+            } else { // THERE ARE NO POSSIBLES WHICH MEANS WE CAN JUST PICK FROM WHATEVERS LEFT
                 if (vars.DEBUG===true) { console.log('%cCPU is picking a random square as all tests have failed.', consts.console.important); }
                 moveFound=true; vars.ai.getRandomPosition(emptyPossibles);
             }
@@ -167,11 +173,11 @@ vars.ai.dropPiece = function(_positionID) {
     vars.game.dropPlayerPiece(selectedPosition);
 }
 
-vars.ai.getRandomPosition = function(_whoopsie=true) { // this function generally deals with CPU mistakes but can also
-    if (_whoopsie===true) { console.log('%cCPU did a whoopsie! Selecting a random position!', consts.console.important); }
+vars.ai.getRandomPosition = function(_whoopsie=true) { // this function generally deals with CPU mistakes but can also be called when no other options are available
+    if (_whoopsie===true) { console.log('%c *** CPU did a whoopsie! Selecting a random position! ***', consts.console.likeReallyImportant); }
     let gV = vars.game;
     let randomPosition = getRandom(0,gV.availablePositions.length-1);
-    console.log('%cThe selected board position ID is: (board_)' + randomPosition, consts.console.important);
     let boardID = gV.availablePositions[randomPosition];
+    console.log('%cThe selected board position is: board_' + boardID + ' (index was ' + randomPosition + ')', consts.console.important);
     vars.ai.dropPiece(boardID);
 }

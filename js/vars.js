@@ -6,6 +6,7 @@ var vars = {
     init: function() {
         vars.game.availablePositions = Phaser.Utils.Array.NumberArray(0,8);
         vars.game.usedPositions = [];
+        vars.game.CPUError=false;
     },
 
     // ENGINE FUNCTIONS
@@ -165,6 +166,7 @@ var vars = {
 
     game: {
         availablePositions: [],
+        CPUError: false,
         usedPositions: [],
 
         init: function() {

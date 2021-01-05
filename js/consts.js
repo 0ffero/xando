@@ -39,6 +39,7 @@ const consts = {
     console: {
         important: 'font-size: 16px; color: yellow; background-color: #911; font-weight: bold;',
         importantish: 'font-size: 14px; color: yellow; background-color: #911;',
+        likeReallyImportant: 'font-size: 18px; color: white; background-color: #911; font-weight: bold;',
     },
 
     depths: {
