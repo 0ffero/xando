@@ -42,8 +42,14 @@ const consts = {
     },
 
     depths: {
-        stars: [1,2,3],
-        UI: 20, gamePiece: 15, boardPiece: 10, windowPiece: 5
+        stars: [5,7,9],
+        UI: 100, gamePiece: 75, boardPiece: 50, windowPiece: 25
+    },
+
+    distances: {
+        back: { alpha: 0.25, scale: 0.5, speed: [18,22] },
+        middle: { alpha: 0.5, scale: 0.75, speed: [38,42] },
+        front: { alpha: 0.75, scale: 1, speed: [58,62] }
     },
 
     pieces: { o: 0, x: 1 },

@@ -100,8 +100,14 @@ vars.ai.choosePosition = function() {
             } else if (vars.player.move!==1) { // THIS IS MOVE 3 OR MORE
                 if (moveFound===false) { // ok, so centre isnt available and CPU/PLAYER has no possible win line and at least one corner has been taken
                     if (vars.player.move===3) { // IF ITS MOVE 3 MAKE SURE THERE ARENT ANY DANGEROUS POSITIONS
-                        let d = vars.game.checkForDangerousLines();
-                        if (d!==false) { moveFound = true; vars.ai.dropPiece(d); } else { vars.ai.doFinalChecks(possibles,xPositions); }
+                        let randomSlip = getRandom(1,100);
+                        if (randomSlip===75) {
+                            // if we get a 75 back from the random number gen, we ignore the dangerous lines check
+                            vars.ai.getRandomPosition();
+                        } else {
+                            let d = vars.game.checkForDangerousLines();
+                            if (d!==false) { moveFound = true; vars.ai.dropPiece(d); } else { vars.ai.doFinalChecks(possibles,xPositions); }
+                        }
                     } else {
                         vars.ai.doFinalChecks(possibles,xPositions);
                     }
@@ -115,46 +121,43 @@ vars.ai.choosePosition = function() {
 
 vars.ai.doFinalChecks = function(possibles,xPositions) {
     // OK. Make sure there are no L's
-    let moveFound=false;
+    let moveFound=false; // this variable is unused, but can be set if needed in future
     console.log('%cChecking for Ls', consts.console.important);
-    let l = vars.game.checkForLPattern();
-    if (l!==false) { // a possible L has been found... block this
-        moveFound = true;
-        vars.ai.dropPiece(l);
+    let whoopsie = getRandom(1,10);
+    if (whoopsie===8) { // 1 in 10 times the CPU ignores the L check
+        vars.ai.getRandomPosition();
     } else {
-        console.log('%c  ... no Ls found', consts.console.important);
-        console.log('%c\nNo move found for CPU!\nNow were gonna look for a single 0 in the winArray to force a block by the player', consts.console.importantish);
-        if (possibles.length>0) {
-            // No defensive or offensive positions left, find an X to put the piece beside (this causes a block on the players end)
-            // THIS MIGHT FAIL. WE NEED TO DOUBLE CHECK THIS  *** TODO ***
-            console.log('Searching for an x to place our piece beside');
-            let x=-1;
-            xPositions.forEach( (p)=>{
-                p.forEach( (c)=> {
-                    if (scene.children.getByName('block_' + c).getData('piece')===consts.pieces.x) { x = c; }
-                })
-            })
-            let ai = consts.aiData;
-            let posArray = [];
-            if (ai.diagonalPositions.includes(x)) { posArray = ai.diagonalSiblings; } else { posArray = ai.centreSiblings; }
+        let l = vars.game.checkForLPattern();
+        if (l!==false) { // a possible L has been found... block this
+            moveFound = true; vars.ai.dropPiece(l);
+        } else {
+            console.log('%c  ... no Ls found', consts.console.important);
+            let emptyPossibles = false; let CPUmalfunction = getRandom(1,9); if (CPUmalfunction===7) { possibles = []; emptyPossibles=true; }
+            if (emptyPossibles===false) { console.log('%c\nNo move found for CPU!\nNow were gonna look for a single 0 in the winArray to force a block by the player', consts.console.importantish); }
+            if (possibles.length>0) {
+                // No defensive or offensive positions left, find an X to put the piece beside (this causes a block on the players end)
+                // THIS MIGHT FAIL. WE NEED TO DOUBLE CHECK THIS  *** TODO ***
+                console.log('Searching for an x to place our piece beside');
+                let x=-1;
+                xPositions.forEach( (p)=>{ p.forEach( (c)=> { if (scene.children.getByName('block_' + c).getData('piece')===consts.pieces.x) { x = c; } }) })
+                let ai = consts.aiData;
+                let posArray = [];
+                if (ai.diagonalPositions.includes(x)) { posArray = ai.diagonalSiblings; } else { posArray = ai.centreSiblings; }
 
-            let selectedIndex = -1;
-            posArray.forEach( (c)=> { if (c[0]===x) { let tempArray = [c[1],c[2]]; selectedIndex = getRandom(tempArray); } })
+                let selectedIndex = -1;
+                posArray.forEach( (c)=> { if (c[0]===x) { let tempArray = [c[1],c[2]]; selectedIndex = getRandom(tempArray); } })
 
-            // sanity check
-            if (selectedIndex===-1) {
-                console.error('Ummm.. somethings gone very wrong.\nWe were looking for a position (diag or centre) but it wasnt found.\nHave we selected diags when we need centres (or vice versa - line 129!');
-            } else {
-                // OK, we have a valid position, lets place the piece
-                moveFound = true;
-                vars.ai.dropPiece(selectedIndex);
+                // sanity check
+                if (selectedIndex===-1) {
+                    console.error('Ummm.. somethings gone very wrong.\nWe were looking for a position (diag or centre) but it wasnt found.\nHave we selected diags when we need centres (or vice versa - line 129!');
+                } else {
+                    // OK, we have a valid position, lets place the piece
+                    moveFound = true; vars.ai.dropPiece(selectedIndex);
+                }
+            } else { // THERE ARE NO POSSIBLES WHICH MEAN WE CAN JUST PICK FROM WHATEVERS LEFT
+                if (vars.DEBUG===true) { console.log('%cCPU is picking a random square as all tests have failed.', consts.console.important); }
+                moveFound=true; vars.ai.getRandomPosition(emptyPossibles);
             }
-        } else { // THERE ARE NO POSSIBLES WHICH MEAN WE CAN JUST PICK FROM WHATEVERS LEFT
-            if (vars.DEBUG===true) { console.log('%c *** CPU is picking a random square ***', consts.console.important); }
-            // as usual, we might as well just use the next available position (even though there could be a few spaces available)
-            moveFound=true;
-            let boardID = vars.game.availablePositions[0];
-            vars.ai.dropPiece(boardID);
         }
     }
 }
@@ -162,4 +165,13 @@ vars.ai.doFinalChecks = function(possibles,xPositions) {
 vars.ai.dropPiece = function(_positionID) {
     let selectedPosition = scene.children.getByName('block_' + _positionID);
     vars.game.dropPlayerPiece(selectedPosition);
+}
+
+vars.ai.getRandomPosition = function(_whoopsie=true) { // this function generally deals with CPU mistakes but can also
+    if (_whoopsie===true) { console.log('%cCPU did a whoopsie! Selecting a random position!', consts.console.important); }
+    let gV = vars.game;
+    let randomPosition = getRandom(0,gV.availablePositions.length-1);
+    console.log('%cThe selected board position ID is: (board_)' + randomPosition, consts.console.important);
+    let boardID = gV.availablePositions[randomPosition];
+    vars.ai.dropPiece(boardID);
 }

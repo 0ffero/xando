@@ -35,6 +35,7 @@ var vars = {
                 scene.load.image('brokenGlass', 'images/glassBreak.png');
                 scene.load.image('whitePixel', 'images/whitePixel.png');
                 scene.load.image('star', 'images/parallaxStar.png');
+                scene.load.atlas('stars', 'images/stars.png', 'images/stars.json');
             }
         },
 
@@ -54,6 +55,7 @@ var vars = {
             scene.groups.pieces      = scene.add.group().setName('piecesGroup');
             scene.groups.score       = scene.add.group().setName('scoreGroup');
             scene.groups.highlight   = scene.add.group().setName('highlightGroup');
+            scene.groups.stars       = scene.add.group().setName('starsGroup');
         }
     },
 
@@ -87,6 +89,10 @@ var vars = {
     },
 
     animate: {
+        init: function() {
+            [...[1,2,3,4,5]].forEach( ()=>vars.animate.newStar() )
+        },
+
         dropPiece: function(_position) {
             let currentPiece = vars.player.currentPiece;
             let frame = consts.pieces[currentPiece];
@@ -103,6 +109,29 @@ var vars = {
             let oC = vars.game.createGlassBreak;
             let oCParams = [_position.x, _position.y];
             scene.tweens.add({ targets: piece, scale: 1, duration: duration, ease: 'Quad.easeIn', onComplete: oC, onCompleteParams: oCParams })
+        },
+
+        newStar: function(_tween,_object) {
+            if (_object) { _object[0].destroy(); }
+            let frame = getRandom(1,6);
+            let distances = consts.distances;
+            let depths = consts.depths.stars;
+
+            let layer = getRandom(0,2); let depth = depths[layer]
+
+            let sData = {}
+            if (layer===0) { sData=distances.back; } else if (layer===1) { sData=distances.middle; } else { sData=distances.front; }
+
+            let y = getRandom(30,vars.canvas.height-30);
+            let s = scene.add.image(vars.canvas.width+40,y,'stars','star' + frame).setDepth(depth).setAlpha(sData.alpha).setScale(sData.scale).setName('star_' + generateRandomID());
+            scene.groups.stars.add(s);
+
+            let speed = getRandom(sData.speed[0], sData.speed[1])*10;
+            let duration = (2000/speed)*1000;
+            /* console.log('y: ' + y + ', Duration: ' + duration + ' (speed=' + speed + ')\nsData:');
+            console.log(sData); */
+            // tween it from right to left
+            scene.tweens.add({ targets: s, x: -40, duration: duration, onComplete: vars.animate.newStar })
         }
     },
 

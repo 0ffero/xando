@@ -74,11 +74,12 @@ function create() {
     vars.camera.init();
     // DRAW THE BACKGROUND STARS
     vars.particles.init();
+    vars.animate.init();
 
-    if (totalTime < 3000) {
+    if (totalTime < 2500) {
         setTimeout( ()=> {
             init();
-        }, 3000-totalTime);
+        }, 2500-totalTime);
     } else {
         init();
     }
@@ -88,7 +89,12 @@ function create() {
 
 
 function init() {
-    scene.children.getByName('loadingImage').destroy();
+    let li = scene.children.getByName('loadingImage');
+    scene.tweens.add({
+        targets: li,
+        alpha: 0,
+        duration: 500
+    })
     // DRAW GAME BOARD
     vars.game.init();
     // INPUT
