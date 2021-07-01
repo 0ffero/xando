@@ -25,6 +25,23 @@ vars.ai.choosePosition = function() {
         // CENTRE SQUARE ISNT AVAILABLE
         // (basically the cpu takes the centre square or does this)
 
+        // ok, so alex is a wuss and decided never winning was boring,
+        // so we're gonna randomly forget to do this check, simulating dumbness
+        let move = vars.player.move;
+
+        let c=true;
+        if (move>2 && vars.game.easy) {
+            // randomly decide against checking the board
+            c = Phaser.Math.RND.between(20, 80) > 50 ?  true : false;
+        }
+        if (!c) {
+            vars.DEBUG ? console.log(`IGNORING CHECK. SELECTING RANDOM POSITION`) : null;
+            vars.ai.getRandomPosition();
+            return false;
+        }
+
+        vars.DEBUG ? console.log(`IGNORING CHECK. SELECTING RANDOM POSITION`) : null;
+
         // check for possible wins
         let winArray = vars.game.buildWinArray();
         let winArrays = [];
@@ -180,4 +197,11 @@ vars.ai.getRandomPosition = function(_whoopsie=true) { // this function generall
     let boardID = gV.availablePositions[randomPosition];
     console.log('%cThe selected board position is: board_' + boardID + ' (index was ' + randomPosition + ')', consts.console.important);
     vars.ai.dropPiece(boardID);
+}
+
+vars.phaserObject = {
+    quickGet: (_oN)=> {
+        if (!_oN) { return false; }
+        return scene.children.getByName(_oN);
+    }
 }

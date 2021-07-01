@@ -1,7 +1,7 @@
 var vars = {
-    DEBUG: true,
+    DEBUG: false,
 
-    version: 1.01,
+    version: 1.03,
 
     init: function() {
         vars.game.availablePositions = Phaser.Utils.Array.NumberArray(0,8);
@@ -34,6 +34,7 @@ var vars = {
                 scene.load.image('block', 'images/block.png');
                 scene.load.spritesheet('xopieces', 'images/xo.png', { frameWidth: 122, frameHeight: 104})
                 scene.load.image('brokenGlass', 'images/glassBreak.png');
+                scene.load.atlas('easyHard', 'images/easyHard.png', 'images/easyHard.json')
                 scene.load.image('whitePixel', 'images/whitePixel.png');
                 scene.load.image('star', 'images/parallaxStar.png');
                 scene.load.atlas('stars', 'images/stars.png', 'images/stars.json');
@@ -65,9 +66,11 @@ var vars = {
             let lS = window.localStorage;
             if (lS.xando_scores===undefined) { 
                 lS.xando_scores = '0,0,0'; // x wins, o wins, draws
+                lS.xando_easy=true;
             } else {
                 let scores = lS.xando_scores.split(',');
                 vars.player.oWins = scores[0]; vars.player.xWins = scores[1]; vars.player.draws = scores[2];
+                vars.game.easy = lS.xando_easy==='true' ? true: false;
             }
         },
     
@@ -80,6 +83,11 @@ var vars = {
             let lS = window.localStorage; let pV = vars.player;
             let oScore = pV.oWins; let xScore = pV.xWins; let draws = pV.draws;
             lS.xando_scores = oScore + ',' + xScore + ',' + draws;
+        },
+
+        updateDifficulty: ()=> {
+            let lS = window.localStorage;
+            lS.xando_easy = vars.game.easy;
         }
     },
 
@@ -100,7 +108,6 @@ var vars = {
             _position.setData({ 'clicked': true, piece: frame });
             let windowPosition = _position.getData('position');
             scene.children.getByName('window_' + windowPosition).setData({ 'clicked': true, piece: frame })
-            vars.game.swapPieces();
 
             vars.audio.playSound('pieceDrop');
             let positionID = _position.getData('position');
@@ -167,6 +174,7 @@ var vars = {
     game: {
         availablePositions: [],
         CPUError: false,
+        easy: true,
         usedPositions: [],
 
         init: function() {
@@ -196,6 +204,18 @@ var vars = {
                 winArray.push(tempStr);
             })
             return winArray;
+        },
+
+        changeDifficulty: ()=> {
+            let gV = vars.game;
+            gV.easy=!gV.easy;
+            // change the image
+            let qg = vars.phaserObject.quickGet;
+            gV.easy ? qg('easyHard').setFrame('easy') : qg('easyHard').setFrame('hard');
+            let difTxt = qg('difTxt'); let dTxt = 'Difficulty:';
+            gV.easy ? difTxt.setText(`${dTxt} Easy`) : difTxt.setText(`${dTxt} Hard`);
+            // save the new difficulty
+            vars.localStorage.updateDifficulty();
         },
 
         checkForDangerousLines: function() {
@@ -357,6 +377,9 @@ var vars = {
                 pV.move++;
                 vars.animate.dropPiece(_position);
                 if (pV.move>=5) { vars.game.checkForWin(pV.move); }
+                if (!vars.player.winnerFound) {
+                    vars.game.swapPieces();
+                }
             } else {
                 console.error('Something went wrong!!!\nThe player tried to drop a piece on to position ' + _position + '.\nBut, this position isnt in Available Positions array!');
             }
@@ -432,7 +455,9 @@ var vars = {
             pV.currentPiece = pV.currentPiece === 'x' ? 'o' : 'x';
             if (pV.currentPiece==='o' && pV.move<9 && pV.winnerFound===false) {
                 scene.input.enabled=false;
-                setTimeout(()=>{ vars.ai.choosePosition(); },500)
+                if (!vars.player.winnerFound) {
+                    setTimeout(()=>{ vars.ai.choosePosition(); },500)
+                }
             } else {
                 scene.input.enabled=true;
             }
@@ -442,7 +467,13 @@ var vars = {
     input: {
         init: function() {
             scene.input.on('gameobjectdown', function (pointer, position) {
-                if (position.getData('clicked') === false) { vars.game.dropPlayerPiece(position); }
+                if (position.name.includes('block_')) {
+                    if (position.getData('clicked') === false) { vars.game.dropPlayerPiece(position); }
+                } else if (position.name==='easyHard') {
+                    vars.game.changeDifficulty();
+                } else {
+                    vars.DEBUG ? console.log(position) : null;
+                }
             })
 
             scene.input.on('gameobjectover', function (pointer, gameObject) {
@@ -532,6 +563,9 @@ var vars = {
             // the last piece is currently falling, so we have to wait for it to fall into position (250ms)
             // change the winning pieces green
             let pieces = consts.solutions[winIndex];
+            // STOP THE GAME!
+
+            // then tween the pieces
             pieces.forEach( (c, index)=> {
                 let target = scene.children.getByName('piece_' + c);
                 let oC = null
@@ -560,14 +594,23 @@ var vars = {
 
             let fontSize = 64;
             let textX = 1450;
-            scene.add.text(textX, 90, 'PLAYER (X) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('xWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 90,  'PLAYER (X) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('xWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
             scene.add.text(textX, 170, '   CPU (O) Wins: ').setFontSize(fontSize).setTint(tints.yellow).setName('oWinText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
             scene.add.text(textX, 250, '          Draws: ').setFontSize(fontSize).setTint(tints.yellow).setName('drawsText').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
 
             textX = 1820;
-            scene.add.text(textX, 90, parseInt(pV.xWins)).setFontSize(fontSize).setTint(tints.white).setName('xWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+            scene.add.text(textX, 90,  parseInt(pV.xWins)).setFontSize(fontSize).setTint(tints.white).setName('xWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
             scene.add.text(textX, 170, parseInt(pV.oWins)).setFontSize(fontSize).setTint(tints.white).setName('oWinInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
             scene.add.text(textX, 250, parseInt(pV.draws)).setFontSize(fontSize).setTint(tints.red).setName('drawsInt').setFontStyle('bold').setOrigin(0.5).setDepth(uiDepth);
+
+            vars.UI.easyHard(uiDepth);
+        },
+
+        easyHard: (_d)=> {
+            let frame = vars.game.easy ? 'easy' : 'hard';
+            scene.add.image(vars.canvas.width-10, vars.canvas.height-10, 'easyHard',frame).setOrigin(1).setName('easyHard').setInteractive().setDepth(_d);
+            let tints = consts.tints;
+            scene.add.text(vars.canvas.width-120, vars.canvas.height-35, `Difficuty: ${vars.game.easy ? 'Easy' : 'Hard' }`).setOrigin(1).setFontSize(64).setTint(tints.white).setName('difTxt').setDepth(_d);
         },
 
         removeCrackedGlass: function() {
