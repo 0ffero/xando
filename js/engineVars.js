@@ -32,7 +32,7 @@ vars.ai.choosePosition = function() {
         let c=true;
         if (move>2 && vars.game.easy) {
             // randomly decide against checking the board
-            c = Phaser.Math.RND.between(20, 80) > 50 ?  true : false;
+            c = Phaser.Math.RND.between(20, 80) > 40 ?  true : false;
         }
         if (!c) {
             vars.DEBUG ? console.log(`IGNORING CHECK. SELECTING RANDOM POSITION`) : null;
